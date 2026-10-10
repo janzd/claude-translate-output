@@ -1,0 +1,6 @@
+{
+  "name": "claude-translate-output",
+  "description": "A Claude Code mod that translates the agent's final answer into a language you choose",
+  "owner": { "name": "janzd" },
+  "plugins": [{ "name": "translate-output", "source": "./" }]
+}
