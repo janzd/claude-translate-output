@@ -40,7 +40,7 @@ test('translates the final answer into the chosen language', async ($, on) => {
   const prompts: string[] = []
   on('model.complete', async (_$, e) => {
     prompts.push(e.prompt)
-    return { value: { isAnswered: true, text: 'こんにちは、世界', usage: USAGE } }
+    return { value: { isAnswered: true, text: '**こんにちは**、世界', usage: USAGE } }
   })
   stubEngine(on)
 
@@ -63,7 +63,7 @@ test('translates the final answer into the chosen language', async ($, on) => {
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect(await ui.find({ type: 'Text', text: /こんにちは/ })).toBeDefined()
+    expect(await ui.find({ type: 'Markdown', text: /\*\*こんにちは\*\*/ })).toBeDefined()
     await ui.unmount()
   }
 })

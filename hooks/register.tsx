@@ -102,7 +102,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Markdown, Text } = $.ui.resolve(e)
     const target = await read($, language)
     const translation = await read($, latest)
 
@@ -130,11 +130,17 @@ export const register: Register = on => {
       )
     }
 
+    if (translation.status === 'error') {
+      return (
+        <Box flexDirection="column">
+          <Text color="red">{translation.text}</Text>
+        </Box>
+      )
+    }
+
     return (
       <Box flexDirection="column">
-        <Text color={translation.status === 'error' ? 'red' : undefined}>
-          {translation.text}
-        </Text>
+        <Markdown text={translation.text} />
       </Box>
     )
   })
