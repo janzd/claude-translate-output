@@ -91,3 +91,70 @@ test('skips subagent turns, aborted turns and when off', async ($, on) => {
   await $.turn.complete({ ...base, reason: 'answer' })
   expect(calls).toBe(0)
 })
+
+test('uses haiku by default and the model chosen with /translate model', async ($, on) => {
+  const models: string[] = []
+  on('model.complete', async (_$, e) => {
+    models.push(e.model)
+    return { value: { isAnswered: true, text: 'x', usage: USAGE } }
+  })
+  stubEngine(on)
+
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  await $.command.run({ ...COMMAND, args: 'German' })
+  const turn = { answer: 'Hi', durationMs: 1, isAborted: false, turnId: 't' }
+
+  await $.turn.complete({ ...turn, reason: 'answer' })
+  const shown = await $.command.run({ ...COMMAND, args: 'model sonnet' })
+  await $.turn.complete({ ...turn, reason: 'answer' })
+  const current = await $.command.run({ ...COMMAND, args: 'model' })
+
+  expect(models).toEqual(['haiku', 'sonnet'])
+  expect(shown.text).toBe('Translation model set to sonnet.')
+  expect(current.text).toBe('Translation model: sonnet.')
+})
+
+test('shows an error in the pane when the model request is refused', async ($, on) => {
+  on('model.complete', async () => {
+    throw new Error('unknown model')
+  })
+  stubEngine(on)
+
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  await $.command.run({ ...COMMAND, args: 'German' })
+  await $.command.run({ ...COMMAND, args: 'model not-a-model' })
+  await $.turn.complete({
+    answer: 'Hi',
+    durationMs: 1,
+    isAborted: false,
+    turnId: 't',
+    reason: 'answer',
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /failed with model not-a-model/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('uses low effort by default and the level chosen with /translate effort', async ($, on) => {
+  const efforts: (string | undefined)[] = []
+  on('model.complete', async (_$, e) => {
+    efforts.push(e.effort)
+    return { value: { isAnswered: true, text: 'x', usage: USAGE } }
+  })
+  stubEngine(on)
+
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  await $.command.run({ ...COMMAND, args: 'German' })
+  const turn = { answer: 'Hi', durationMs: 1, isAborted: false, turnId: 't' }
+
+  await $.turn.complete({ ...turn, reason: 'answer' })
+  const rejected = await $.command.run({ ...COMMAND, args: 'effort extreme' })
+  await $.command.run({ ...COMMAND, args: 'effort High' })
+  await $.turn.complete({ ...turn, reason: 'answer' })
+  const current = await $.command.run({ ...COMMAND, args: 'effort' })
+
+  expect(efforts).toEqual(['low', 'high'])
+  expect(rejected.text).toContain('Unknown effort "extreme"')
+  expect(current.text).toBe('Translation effort: high.')
+})

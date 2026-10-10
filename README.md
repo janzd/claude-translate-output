@@ -25,6 +25,10 @@ available in every session, including the desktop app's Code tab).
 /translate <language>   turn on, translating final answers into <language>
 /translate              show the current language and reopen the pane
 /translate off          turn off
+/translate model <name> translate with <name> (haiku, sonnet, opus or a model id)
+/translate model        show the model in use
+/translate effort <level> set effort: low, medium, high, xhigh or max
+/translate effort       show the effort in use
 ```
 
 The language is free text and is passed to the model as written, so real
@@ -39,13 +43,17 @@ translation; the status line reads `Translating to <language>…` while it runs.
 
 - Hooks `turn.complete` and takes the turn's final visible answer, skipping
   subagent turns, interrupted turns and errors.
-- Sends it to `haiku` via `$.model.complete` (a separate, history-free call on
-  the session's own credentials), asking it to keep Markdown, code blocks, file
-  paths, commands and identifiers unchanged.
+- Sends it to the translation model (`haiku` by default) via `$.model.complete`
+  (a separate, history-free call on the session's own credentials), asking it to
+  keep Markdown, code blocks, file paths, commands and identifiers unchanged.
 - Draws the result in a pane through a `ui.render` hook.
 
-To trade speed for quality (useful for less common languages), change `MODEL` in
-[`hooks/register.tsx`](hooks/register.tsx) to `sonnet`.
+To trade speed for quality (useful for less common languages), run
+`/translate model sonnet`. The model, like the language, is remembered across
+sessions. If the model name isn't recognized, the pane shows the error.
+`/translate effort <level>` sets how hard the model thinks (`low` by default);
+higher levels may help with literary styles or long technical answers, at the
+cost of speed.
 
 ## Development
 

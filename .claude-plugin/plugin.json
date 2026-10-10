@@ -1,6 +1,6 @@
 {
   "name": "translate-output",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Translates the agent's final answer of each turn into a language you choose and shows it in a side pane",
   "author": { "name": "janzd" },
   "types": "./types/index.d.ts"
