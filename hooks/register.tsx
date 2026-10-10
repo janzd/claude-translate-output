@@ -1,11 +1,15 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, ModelEffort, Register } from 'claude-code'
 
 import type { Translation } from '../types'
 
 const PANE = 'translate-output'
 const STORE_KEY = 'language'
-const MODEL = 'haiku'
+const MODEL_STORE_KEY = 'model'
+const DEFAULT_MODEL = 'haiku'
+const EFFORT_STORE_KEY = 'effort'
+const DEFAULT_EFFORT: ModelEffort = 'low'
+const EFFORTS: readonly ModelEffort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 
 const language = atom({ plugin: 'translate-output', key: 'language' } as const, null)
 const latest = atom({ plugin: 'translate-output', key: 'latest' } as const, null)
@@ -14,6 +18,10 @@ const USAGE = [
   'Usage:',
   '  /translate <language>   turn on, translating final answers into <language>',
   '  /translate off          turn off',
+  '  /translate model <name> translate with <name> (haiku, sonnet, opus or a model id)',
+  '  /translate model        show the model in use',
+  '  /translate effort <level> set effort: low, medium, high, xhigh or max',
+  '  /translate effort       show the effort in use',
   '  /translate              show the current setting and open the pane',
 ].join('\n')
 
@@ -27,11 +35,24 @@ function translationPrompt(target: string, answer: string): string {
   ].join('\n')
 }
 
+async function translationModel($: EngineInterface): Promise<string> {
+  const stored = await $.store.get(MODEL_STORE_KEY)
+
+  return typeof stored === 'string' ? stored : DEFAULT_MODEL
+}
+
+async function translationEffort($: EngineInterface): Promise<ModelEffort> {
+  const stored = await $.store.get(EFFORT_STORE_KEY)
+
+  return EFFORTS.find(level => level === stored) ?? DEFAULT_EFFORT
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'translate',
-      description: 'Translate final answers: /translate <language> | off',
+      description:
+        'Translate final answers: /translate <language> | off | model <name> | effort <level>',
     })
     // The chosen language persists across sessions; mirror it into session state.
     const stored = await $.store.get(STORE_KEY)
@@ -42,6 +63,33 @@ export const register: Register = on => {
 
   on('command.run', { command: 'translate' }, async ($, e) => {
     const arg = e.args.trim()
+    const modelArg = /^model(?:\s+(.*))?$/i.exec(arg)
+
+    if (modelArg !== null) {
+      const requested = modelArg[1]?.trim() ?? ''
+      if (requested === '') {
+        return { text: `Translation model: ${await translationModel($)}.` }
+      }
+      await $.store.set(MODEL_STORE_KEY, requested)
+
+      return { text: `Translation model set to ${requested}.` }
+    }
+
+    const effortArg = /^effort(?:\s+(.*))?$/i.exec(arg)
+
+    if (effortArg !== null) {
+      const requested = effortArg[1]?.trim().toLowerCase() ?? ''
+      if (requested === '') {
+        return { text: `Translation effort: ${await translationEffort($)}.` }
+      }
+      const effort = EFFORTS.find(level => level === requested)
+      if (effort === undefined) {
+        return { text: `Unknown effort "${requested}". Use one of: ${EFFORTS.join(', ')}.` }
+      }
+      await $.store.set(EFFORT_STORE_KEY, effort)
+
+      return { text: `Translation effort set to ${effort}.` }
+    }
 
     if (arg === '') {
       const current = await read($, language)
@@ -84,17 +132,26 @@ export const register: Register = on => {
     await update($, latest, () => pending)
     $.ui.status(`Translating to ${target}…`)
 
-    const reply = await $.model.complete({
-      model: MODEL,
-      prompt: translationPrompt(target, e.answer),
-      maxTokens: 16000,
-      effort: 'low',
-      timeoutMs: 120000,
-    })
-
-    const done: Translation = reply.isAnswered
-      ? { language: target, text: reply.text, status: 'done' }
-      : { language: target, text: `Translation failed (${reply.reason}).`, status: 'error' }
+    const model = await translationModel($)
+    const effort = await translationEffort($)
+    let done: Translation
+    try {
+      const reply = await $.model.complete({
+        model,
+        prompt: translationPrompt(target, e.answer),
+        maxTokens: 16000,
+        effort,
+        timeoutMs: 120000,
+      })
+      done = reply.isAnswered
+        ? { language: target, text: reply.text, status: 'done' }
+        : { language: target, text: `Translation failed (${reply.reason}).`, status: 'error' }
+    } catch (error) {
+      // The engine refuses to send a request for a model it does not know or allow.
+      const reason = error instanceof Error ? error.message : String(error)
+      const text = `Translation failed with model ${model}: ${reason}`
+      done = { language: target, text, status: 'error' }
+    }
     await update($, latest, () => done)
     $.ui.status(undefined)
 
