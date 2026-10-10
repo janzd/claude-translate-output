@@ -35,6 +35,15 @@ function translationPrompt(target: string, answer: string): string {
   ].join('\n')
 }
 
+function displayOnlyNote(target: string): string {
+  return [
+    `The translate-output plugin now shows a ${target} translation of your final`,
+    'answers in a separate pane, on its own. This is display-only and does not',
+    'change how you respond: keep answering in the language you would otherwise',
+    'use, and do not translate your answers yourself.',
+  ].join(' ')
+}
+
 async function translationModel($: EngineInterface): Promise<string> {
   const stored = await $.store.get(MODEL_STORE_KEY)
 
@@ -114,7 +123,12 @@ export const register: Register = on => {
     await update($, language, () => arg)
     await $.ui.open({ id: PANE, title: `Translation (${arg})` })
 
-    return { text: `Translation on: final answers will be translated into ${arg}.` }
+    return {
+      text: `Translation pane on: final answers are shown translated into ${arg}.`,
+      // The model reads command output; without this it may start answering in
+      // the chosen language itself.
+      context: [displayOnlyNote(arg)],
+    }
   })
 
   on('turn.complete', async ($, e, next) => {

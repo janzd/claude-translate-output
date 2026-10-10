@@ -158,3 +158,15 @@ test('uses low effort by default and the level chosen with /translate effort', a
   expect(rejected.text).toContain('Unknown effort "extreme"')
   expect(current.text).toBe('Translation effort: high.')
 })
+
+test('tells the model the translation is display-only when turned on', async ($, on) => {
+  stubEngine(on)
+
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  const enabled = await $.command.run({ ...COMMAND, args: 'Spanish' })
+
+  expect(enabled.text).toBe('Translation pane on: final answers are shown translated into Spanish.')
+  expect(enabled.context).toHaveLength(1)
+  expect(enabled.context?.[0]).toContain('display-only')
+  expect(enabled.context?.[0]).toContain('keep answering in the language you would otherwise')
+})
