@@ -78,3 +78,7 @@ claude --plugin-dir /path/to/claude-translate-output
 | `hooks/register.tsx` | The mod: `/translate` command, `turn.complete` hook, pane |
 | `hooks/register.test.tsx` | Tests run by `claude plugin test` |
 | `types/index.d.ts` | Type contract for the mod's session state |
+
+## License
+
+[MIT](LICENSE)

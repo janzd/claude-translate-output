@@ -3,5 +3,6 @@
   "version": "0.2.1",
   "description": "Translates the agent's final answer of each turn into a language you choose and shows it in a side pane",
   "author": { "name": "janzd" },
+  "license": "MIT",
   "types": "./types/index.d.ts"
 }
